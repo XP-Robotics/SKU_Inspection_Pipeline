@@ -1,4 +1,4 @@
-# Arbiter — Multi-SKU Visual Inspection Pipeline
+# XP Robotics — Multi-SKU Visual Inspection Pipeline
 
 A configuration-driven platform for automated visual quality inspection. Every
 product is a **SKU** with its own capture rules, dataset, model, and pass/fail
