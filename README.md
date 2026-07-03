@@ -98,7 +98,3 @@ runtime API, and build-phase runners are in progress.
 - [ ] First SKU end-to-end
 - [ ] Frontend (SOP authoring, annotation review, dashboards)
 - [ ] Second SKU with a different model type
-
-## License
-
-TBD
