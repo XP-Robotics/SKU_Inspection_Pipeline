@@ -51,3 +51,9 @@ def test_demo_bracket_lists_and_inspects(client: TestClient):
     assert record["verdict"]["passed"] is True
     assert record["verdict"]["details"]["missing_parts"] == []
     assert record["result"]["payload"]["type"] == "detection"
+
+    # The frontend-facing per-part checks survive JSON round-trip through the API.
+    checks = record["verdict"]["details"]["checks"]
+    assert len(checks) == 4
+    assert all(c["status"] == "pass" for c in checks)
+    assert all(set(c["box"]) == {"x", "y", "width", "height"} for c in checks)
