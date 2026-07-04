@@ -79,7 +79,37 @@ The dataset/annotation-review dashboard needs the image list + annotation status
 **Ask:** `GET /skus/{id}/dataset` → `Dataset` (image list with `annotated`,
 `split`, `capture_session`). Currently mock-backed via `api.proposed.getDataset`.
 
-## 7. 🟩 `SkuSummary` enrichment for the bundle list
+## 7. 🟥 Create a SKU bundle: `POST /skus`
+
+The SKU bundles page has an **"Add SKU bundle"** action (build phase: *Define
+SKU*). It needs a create endpoint. The frontend sends the writable `SkuConfig`
+fields; the backend should scaffold `skus/<id>/` (config.yaml) and register it.
+
+Requested:
+
+```
+POST /skus            body: CreateSkuRequest → 201 SkuConfig
+```
+
+```jsonc
+// CreateSkuRequest (mirrors writable SkuConfig fields)
+{
+  "sku_id": "bracket-a",          // required, ^[a-z0-9][a-z0-9_-]*$
+  "name": "Mounting Bracket A",   // optional
+  "result_type": "detection",     // required
+  "adapter_id": "rfdetr_bracket_a", // required
+  "plugin_id": "bracket_a_rules",   // required
+  "classes": ["screw", "crack"],  // optional
+  "thresholds": {},               // optional
+  "params": {}                    // optional
+}
+```
+
+Expected errors: `409` if the id already exists, `422` on validation. Currently
+mock-backed via `api.proposed.createSku`. (Adapter/plugin/data/model/training are
+added out-of-band — the create call only defines the bundle config.)
+
+## 8. 🟩 `SkuSummary` enrichment for the bundle list
 
 `SkuSummary` is `{sku_id, name, result_type}`. The SKU bundle cards would benefit
 from a build-status and a thumbnail, but the frontend does **not** assume them —

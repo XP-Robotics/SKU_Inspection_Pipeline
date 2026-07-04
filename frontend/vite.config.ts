@@ -12,9 +12,12 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      // The FastAPI backend serves routes at root (/skus, /inspect, …). The
+      // frontend uses a same-origin /api prefix, so strip it when proxying.
       "/api": {
         target: apiTarget,
         changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ""),
       },
     },
   },

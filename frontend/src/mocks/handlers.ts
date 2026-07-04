@@ -8,7 +8,8 @@ import {
   skus,
   sops,
 } from "./fixtures";
-import { Sop } from "../api/schemas";
+import { CreateSkuRequest, Sop } from "../api/schemas";
+import type { SkuConfig, SkuSummary } from "../api/types";
 
 /**
  * MSW request handlers. Authoritative routes mirror openapi/openapi.json; the
@@ -18,8 +19,10 @@ import { Sop } from "../api/schemas";
 
 const notFound = (detail: string) => HttpResponse.json({ detail }, { status: 404 });
 
-// In-memory SOP store so authoring edits persist for the session.
+// In-memory stores so create/edit persist for the session.
 const sopStore = structuredClone(sops);
+const skuList: SkuSummary[] = structuredClone(skus);
+const cfgStore: Record<string, SkuConfig> = structuredClone(skuConfigs);
 
 export const handlers = [
   // ---- Authoritative ------------------------------------------------------
@@ -27,12 +30,42 @@ export const handlers = [
 
   http.get("/api/skus", async () => {
     await delay(120);
-    return HttpResponse.json({ skus });
+    return HttpResponse.json({ skus: skuList });
   }),
 
   http.get("/api/skus/:skuId", ({ params }) => {
-    const cfg = skuConfigs[params.skuId as string];
+    const cfg = cfgStore[params.skuId as string];
     return cfg ? HttpResponse.json(cfg) : notFound("SKU not found");
+  }),
+
+  // PROPOSED: create a new SKU bundle (build phase: "Define SKU"). Not in the
+  // published schema yet — see docs/backend-requests.md.
+  http.post("/api/skus", async ({ request }) => {
+    const parsed = CreateSkuRequest.safeParse(await request.json());
+    if (!parsed.success) {
+      return HttpResponse.json(
+        { detail: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") },
+        { status: 422 },
+      );
+    }
+    const body = parsed.data;
+    if (cfgStore[body.sku_id]) {
+      return HttpResponse.json({ detail: `SKU '${body.sku_id}' already exists` }, { status: 409 });
+    }
+    const cfg: SkuConfig = {
+      sku_id: body.sku_id,
+      name: body.name ?? body.sku_id,
+      result_type: body.result_type,
+      adapter_id: body.adapter_id,
+      plugin_id: body.plugin_id,
+      classes: body.classes ?? [],
+      thresholds: body.thresholds ?? {},
+      params: body.params ?? {},
+    };
+    cfgStore[body.sku_id] = cfg;
+    skuList.push({ sku_id: cfg.sku_id, name: cfg.name, result_type: cfg.result_type });
+    await delay(300);
+    return HttpResponse.json(cfg, { status: 201 });
   }),
 
   http.post("/api/inspect", async ({ request }) => {

@@ -29,6 +29,7 @@ export type SkuConfig = z.infer<typeof S.SkuConfig>;
 export type HealthResponse = z.infer<typeof S.HealthResponse>;
 
 // --- Proposed (pending backend) --------------------------------------------
+export type CreateSkuRequest = z.infer<typeof S.CreateSkuRequest>;
 export type SopRule = z.infer<typeof S.SopRule>;
 export type Sop = z.infer<typeof S.Sop>;
 export type ConfusionMatrix = z.infer<typeof S.ConfusionMatrix>;

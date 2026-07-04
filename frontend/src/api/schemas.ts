@@ -134,6 +134,25 @@ export const HealthResponse = z.object({ status: z.string() });
 //    section above stays an exact mirror.
 // ===========================================================================
 
+/**
+ * Body for creating a new SKU bundle (build phase: "Define SKU"). Mirrors the
+ * writable fields of SkuConfig. The backend has no create endpoint yet — this
+ * is a frontend proposal (POST /skus). See docs/backend-requests.md.
+ */
+export const CreateSkuRequest = z.object({
+  sku_id: z
+    .string()
+    .min(1, "SKU id is required")
+    .regex(/^[a-z0-9][a-z0-9_-]*$/, "lowercase letters, digits, '-' or '_' only"),
+  name: z.string().optional(),
+  result_type: ResultType,
+  adapter_id: z.string().min(1, "adapter id is required"),
+  plugin_id: z.string().min(1, "plugin id is required"),
+  classes: z.array(z.string()).optional(),
+  thresholds: z.record(z.string(), z.number()).optional(),
+  params: z.record(z.string(), z.unknown()).optional(),
+});
+
 export const SopRule = z.object({
   id: z.string(),
   description: z.string(),

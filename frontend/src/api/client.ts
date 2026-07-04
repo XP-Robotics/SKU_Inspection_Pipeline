@@ -1,6 +1,7 @@
 import type { z } from "zod";
 import * as S from "./schemas";
 import type {
+  CreateSkuRequest,
   Dataset,
   InspectionRecord,
   MetricsReport,
@@ -114,6 +115,9 @@ export const api = {
   // See docs/backend-requests.md. These routes do not exist in the published
   // schema yet — flag before relying on them against a live backend.
   proposed: {
+    createSku: (body: CreateSkuRequest): Promise<SkuConfig> =>
+      request("/skus", S.SkuConfig, { method: "POST", body: JSON.stringify(body) }),
+
     getSop: (skuId: string): Promise<Sop> =>
       request(`/skus/${encodeURIComponent(skuId)}/sop`, S.Sop),
 

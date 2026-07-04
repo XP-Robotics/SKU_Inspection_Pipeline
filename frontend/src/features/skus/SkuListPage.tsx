@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAsync } from "../../lib/useAsync";
 import { AsyncBoundary } from "../../components/States";
 import { Card, PageHeader, ResultTypeTag } from "../../components/ui";
+import { AddSkuDialog } from "./AddSkuDialog";
 
 // Presentation-only monogram gradient derived from the SKU id — not an API
 // field. SkuSummary carries no thumbnail in the contract.
@@ -14,13 +16,33 @@ function monogram(id: string): { text: string; hue: number } {
 
 export function SkuListPage() {
   const state = useAsync(() => api.listSkus(), []);
+  const [adding, setAdding] = useState(false);
+  const [flash, setFlash] = useState<string | null>(null);
 
   return (
     <div className="page">
       <PageHeader
         title="SKU bundles"
         subtitle="Each SKU is a self-contained bundle: SOP, dataset, model, rules, metrics."
+        actions={
+          <button className="btn btn--primary" onClick={() => setAdding(true)}>
+            + Add SKU bundle
+          </button>
+        }
       />
+
+      {flash && <div className="flash flash--ok">Created bundle {flash} ✓</div>}
+
+      {adding && (
+        <AddSkuDialog
+          onClose={() => setAdding(false)}
+          onCreated={(skuId) => {
+            setAdding(false);
+            setFlash(skuId);
+            state.reload();
+          }}
+        />
+      )}
       <AsyncBoundary state={state} empty={(d) => d.length === 0}>
         {(skus) => (
           <div className="grid grid--cards">
