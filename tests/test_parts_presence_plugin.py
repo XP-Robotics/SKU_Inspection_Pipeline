@@ -50,6 +50,10 @@ def test_plugin_is_registered_by_id():
     assert registered_plugins().get("parts_presence") is not None
 
 
+def _checks_by_name(verdict: Verdict) -> dict[str, dict]:
+    return {c["name"]: c for c in verdict.details["checks"]}
+
+
 def test_all_parts_present_passes():
     result = _result([_det(p, 0.9) for p in EXPECTED])
     verdict = PartsPresencePlugin().evaluate(result, _config())
@@ -58,6 +62,14 @@ def test_all_parts_present_passes():
     assert verdict.passed is True
     assert verdict.details["missing_parts"] == []
     assert set(verdict.details["detected_parts"]) == set(EXPECTED)
+
+    # Frontend-facing per-part checks: one per expected part, all passing, boxed.
+    checks = _checks_by_name(verdict)
+    assert set(checks) == set(EXPECTED)
+    for part in EXPECTED:
+        assert checks[part]["status"] == "pass"
+        assert checks[part]["actual"].startswith("detected")
+        assert set(checks[part]["box"]) == {"x", "y", "width", "height"}
 
 
 def test_missing_part_fails_and_names_it():
@@ -68,14 +80,42 @@ def test_missing_part_fails_and_names_it():
     assert verdict.details["missing_parts"] == ["clip"]
     assert "clip" in verdict.reason
 
+    checks = _checks_by_name(verdict)
+    assert checks["clip"]["status"] == "missing"
+    assert "box" not in checks["clip"]  # can't localize an absence
+    assert checks["bracket_body"]["status"] == "pass"
 
-def test_low_confidence_counts_as_missing():
+
+def test_low_confidence_is_a_failed_check_with_a_box():
     dets = [_det(p, 0.9) for p in EXPECTED if p != "screw_right"]
     dets.append(_det("screw_right", 0.3))  # below min_confidence 0.5
     verdict = PartsPresencePlugin().evaluate(_result(dets), _config())
 
     assert verdict.passed is False
+    # Below-threshold still counts against presence (missing_parts).
     assert verdict.details["missing_parts"] == ["screw_right"]
+
+    check = _checks_by_name(verdict)["screw_right"]
+    assert check["status"] == "fail"  # detected-but-weak, distinct from absent
+    assert "box" in check  # the weak hit is still localizable
+    assert "0.30" in check["message"]
+
+
+def test_checks_conform_to_frontend_check_shape():
+    """Every check must satisfy the frontend's Check contract (status enum,
+    required name, optional string fields)."""
+    dets = [_det(p, 0.9) for p in EXPECTED if p != "clip"]
+    dets.append(_det("screw_right", 0.2))  # add a below-threshold duplicate-ish hit
+    verdict = PartsPresencePlugin().evaluate(_result(dets), _config())
+
+    valid_status = {"pass", "fail", "missing", "warn"}
+    for c in verdict.details["checks"]:
+        assert isinstance(c["name"], str) and c["name"]
+        assert c["status"] in valid_status
+        for opt in ("expected", "actual", "message"):
+            assert opt not in c or isinstance(c[opt], str)
+        if "box" in c:
+            assert set(c["box"]) == {"x", "y", "width", "height"}
 
 
 def test_threshold_comes_from_config_not_code():
