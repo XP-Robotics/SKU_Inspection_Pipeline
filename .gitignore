@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Runtime artifacts
+logs/
+*.log
+
+# OS / editor
+.DS_Store
+.idea/
+
+# Note: skus/<id>/model/ weights and data are per-SKU; keep .gitkeep placeholders.

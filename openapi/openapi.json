@@ -1,0 +1,612 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Multi-SKU Visual Inspection Pipeline",
+    "summary": "Identify SKU -> load bundle -> predict -> evaluate -> verdict -> log.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "summary": "Healthz",
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/skus": {
+      "get": {
+        "tags": [
+          "skus"
+        ],
+        "summary": "List Skus",
+        "description": "List every registered SKU bundle.",
+        "operationId": "list_skus_skus_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkuListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/skus/{sku_id}": {
+      "get": {
+        "tags": [
+          "skus"
+        ],
+        "summary": "Get Sku",
+        "description": "Return the declarative config for one SKU bundle.",
+        "operationId": "get_sku_skus__sku_id__get",
+        "parameters": [
+          {
+            "name": "sku_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sku Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkuConfig"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inspect": {
+      "post": {
+        "tags": [
+          "inspection"
+        ],
+        "summary": "Inspect",
+        "description": "Run the full runtime path and return the logged inspection record.\n\nBody is ``multipart/form-data``: ``sku_id`` field + ``image`` file.",
+        "operationId": "inspect_inspect_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_inspect_inspect_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectionRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_inspect_inspect_post": {
+        "properties": {
+          "sku_id": {
+            "type": "string",
+            "title": "Sku Id",
+            "description": "Which SKU bundle to inspect against."
+          },
+          "image": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Image",
+            "description": "The captured product image."
+          }
+        },
+        "type": "object",
+        "required": [
+          "sku_id",
+          "image"
+        ],
+        "title": "Body_inspect_inspect_post"
+      },
+      "BoundingBox": {
+        "properties": {
+          "x": {
+            "type": "number",
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "title": "Y"
+          },
+          "width": {
+            "type": "number",
+            "title": "Width"
+          },
+          "height": {
+            "type": "number",
+            "title": "Height"
+          }
+        },
+        "type": "object",
+        "required": [
+          "x",
+          "y",
+          "width",
+          "height"
+        ],
+        "title": "BoundingBox",
+        "description": "Axis-aligned box in pixel coordinates (top-left origin)."
+      },
+      "ClassificationPayload": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "classification",
+            "title": "Type",
+            "default": "classification"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence"
+          },
+          "scores": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Scores"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "confidence"
+        ],
+        "title": "ClassificationPayload"
+      },
+      "Detection": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence"
+          },
+          "box": {
+            "$ref": "#/components/schemas/BoundingBox"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "confidence",
+          "box"
+        ],
+        "title": "Detection",
+        "description": "A single detected instance."
+      },
+      "DetectionPayload": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "detection",
+            "title": "Type",
+            "default": "detection"
+          },
+          "detections": {
+            "items": {
+              "$ref": "#/components/schemas/Detection"
+            },
+            "type": "array",
+            "title": "Detections"
+          }
+        },
+        "type": "object",
+        "title": "DetectionPayload"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "HealthResponse"
+      },
+      "InspectionRecord": {
+        "properties": {
+          "inspection_id": {
+            "type": "string",
+            "title": "Inspection Id"
+          },
+          "sku_id": {
+            "type": "string",
+            "title": "Sku Id"
+          },
+          "result": {
+            "$ref": "#/components/schemas/ModelResult"
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/Verdict"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sku_id",
+          "result",
+          "verdict"
+        ],
+        "title": "InspectionRecord",
+        "description": "The full, self-describing outcome of one runtime inspection."
+      },
+      "Measurement": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "value"
+        ],
+        "title": "Measurement",
+        "description": "A single named scalar measurement, optionally with a unit."
+      },
+      "MeasurementPayload": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "measurement",
+            "title": "Type",
+            "default": "measurement"
+          },
+          "measurements": {
+            "items": {
+              "$ref": "#/components/schemas/Measurement"
+            },
+            "type": "array",
+            "title": "Measurements"
+          }
+        },
+        "type": "object",
+        "title": "MeasurementPayload"
+      },
+      "ModelResult": {
+        "properties": {
+          "sku_id": {
+            "type": "string",
+            "title": "Sku Id"
+          },
+          "payload": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DetectionPayload"
+              },
+              {
+                "$ref": "#/components/schemas/ClassificationPayload"
+              },
+              {
+                "$ref": "#/components/schemas/MeasurementPayload"
+              }
+            ],
+            "title": "Payload",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "classification": "#/components/schemas/ClassificationPayload",
+                "detection": "#/components/schemas/DetectionPayload",
+                "measurement": "#/components/schemas/MeasurementPayload"
+              }
+            }
+          },
+          "model_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Version"
+          },
+          "raw": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Raw"
+          },
+          "result_type": {
+            "$ref": "#/components/schemas/ResultType",
+            "description": "The tag used to interpret and validate this result.\n\nDerived from the payload's discriminator so it can never disagree with\nit, but surfaced as a top-level field for consumers that switch on the\nresult shape without reaching into ``payload``.",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "sku_id",
+          "payload",
+          "result_type"
+        ],
+        "title": "ModelResult",
+        "description": "Uniform, type-tagged envelope returned by every :class:`ModelAdapter`.\n\nThe envelope carries traceability metadata common to all SKUs; the\n``payload`` holds the type-specific data. Downstream code dispatches on\n:attr:`result_type` (a :class:`ResultType`), never on :attr:`sku_id`."
+      },
+      "ResultType": {
+        "type": "string",
+        "enum": [
+          "detection",
+          "classification",
+          "measurement"
+        ],
+        "title": "ResultType",
+        "description": "How a model's output is shaped. Dispatch key for interpret + validate."
+      },
+      "SkuConfig": {
+        "properties": {
+          "sku_id": {
+            "type": "string",
+            "title": "Sku Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "result_type": {
+            "$ref": "#/components/schemas/ResultType"
+          },
+          "adapter_id": {
+            "type": "string",
+            "title": "Adapter Id"
+          },
+          "plugin_id": {
+            "type": "string",
+            "title": "Plugin Id"
+          },
+          "classes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Classes"
+          },
+          "thresholds": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Thresholds"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sku_id",
+          "result_type",
+          "adapter_id",
+          "plugin_id"
+        ],
+        "title": "SkuConfig",
+        "description": "Declarative configuration for one SKU bundle.\n\nThis is the ``config`` handed to :meth:`RulePlugin.evaluate`. It names the\nadapter and plugin to resolve (by id) and carries the thresholds / class\nlist / freeform params a plugin needs. It never contains executable logic."
+      },
+      "SkuListResponse": {
+        "properties": {
+          "skus": {
+            "items": {
+              "$ref": "#/components/schemas/SkuSummary"
+            },
+            "type": "array",
+            "title": "Skus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "skus"
+        ],
+        "title": "SkuListResponse"
+      },
+      "SkuSummary": {
+        "properties": {
+          "sku_id": {
+            "type": "string",
+            "title": "Sku Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "result_type": {
+            "type": "string",
+            "title": "Result Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sku_id",
+          "name",
+          "result_type"
+        ],
+        "title": "SkuSummary"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "Verdict": {
+        "properties": {
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "details": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Details"
+          }
+        },
+        "type": "object",
+        "required": [
+          "passed",
+          "reason"
+        ],
+        "title": "Verdict",
+        "description": "The pass/fail outcome of an inspection, with a human-readable reason."
+      }
+    }
+  }
+}
