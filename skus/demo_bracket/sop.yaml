@@ -1,0 +1,27 @@
+# Standard Operating Procedure — human-authored. Capture rules + pass/fail
+# definition. Read by operators/frontend; the machine-enforced policy lives in
+# the rule plugin, this is its human-readable source of truth (G3 traceability).
+sku_id: demo_bracket
+name: "Demo Bracket Assembly"
+
+capture:
+  station: "inspection-cell-1"
+  view: "top-down"
+  distance_mm: 300
+  lighting: "diffuse ring, no glare on metal"
+  background: "matte black mat"
+  # Capture variety guards generalization (PRD §11): vary orientation/position.
+  variety:
+    - "rotate part 0/90/180/270 degrees across the dataset"
+    - "shift part position within frame"
+    - "include known-defective units (missing screws/clip)"
+
+pass_fail:
+  definition: >
+    PASS if and only if all four required parts are present in the frame:
+    bracket_body, screw_left, screw_right, clip. A unit missing any required
+    part FAILS. Presence is judged at min_confidence = 0.5.
+  required_parts: [bracket_body, screw_left, screw_right, clip]
+  enforced_by:
+    plugin_id: parts_presence
+    thresholds: {min_confidence: 0.5}

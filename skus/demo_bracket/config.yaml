@@ -1,0 +1,34 @@
+# Declarative config for one SKU bundle -> validated into core.contracts.SkuConfig.
+# Contains data only; no executable logic. Adapter/plugin resolved by id.
+sku_id: demo_bracket
+name: "Demo Bracket Assembly"
+
+# Declared output shape; must match what the adapter returns (orchestrator asserts).
+result_type: detection
+
+# Registry ids -> concrete classes (ml/adapters/stub_adapter.py, plugins/parts_presence_plugin.py)
+adapter_id: stub
+plugin_id: parts_presence
+
+# Full class list this SKU's model can emit (informational + validation).
+classes: [bracket_body, screw_left, screw_right, clip]
+
+# Consumed by the rule plugin.
+thresholds:
+  min_confidence: 0.5
+
+# Freeform adapter/plugin params.
+params:
+  # Parts that MUST be present for a PASS (read by PartsPresencePlugin).
+  expected_parts: [bracket_body, screw_left, screw_right, clip]
+
+  # Canned output for StubAdapter (no weights). Values live here, not in code.
+  stub:
+    model_version: "stub-v0"
+    payload:
+      type: detection
+      detections:
+        - {label: bracket_body, confidence: 0.99, box: {x: 8,   y: 10,  width: 200, height: 150}}
+        - {label: screw_left,   confidence: 0.94, box: {x: 20,  y: 30,  width: 16,  height: 16}}
+        - {label: screw_right,  confidence: 0.92, box: {x: 180, y: 30,  width: 16,  height: 16}}
+        - {label: clip,         confidence: 0.88, box: {x: 100, y: 140, width: 24,  height: 12}}
