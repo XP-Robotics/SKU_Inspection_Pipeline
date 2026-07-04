@@ -40,6 +40,10 @@ class RegistryError(RuntimeError):
     """Raised when a bundle, adapter, or plugin cannot be resolved."""
 
 
+class BundleExistsError(RegistryError):
+    """Raised when creating a bundle whose ``skus/<id>/`` already exists."""
+
+
 def register_adapter(adapter_id: str):
     """Decorator: register a :class:`ModelAdapter` subclass under ``adapter_id``."""
 
@@ -146,6 +150,30 @@ class SkuRegistry:
             metrics_dir=root / "metrics",
         )
 
+    # -- creation ----------------------------------------------------------- #
+    def create(self, config: SkuConfig) -> SkuBundle:
+        """Scaffold a new bundle on disk from its declarative ``config``.
+
+        Build phase step 1 ("Define SKU"): writes ``config.yaml`` and the empty
+        ``data/`` ``model/`` ``metrics/`` dirs plus a minimal ``sop.yaml`` stub.
+        Purely data + directories — the adapter/plugin named by id are NOT
+        resolved here; a bundle is created even if they don't exist yet and only
+        becomes runnable once they do. Generic across SKUs: no identity branching.
+        """
+        root = self.skus_root / config.sku_id
+        if root.exists():
+            raise BundleExistsError(f"bundle {config.sku_id!r} already exists at {root}")
+
+        (root / "data").mkdir(parents=True)
+        (root / "model").mkdir()
+        (root / "metrics").mkdir()
+        _write_yaml(root / self.CONFIG_FILE, _config_to_yaml_dict(config))
+        _write_yaml(root / self.SOP_FILE, _sop_stub(config.sku_id))
+
+        # ``discover``/``load`` read the disk live, so the new bundle is visible
+        # immediately with no explicit rescan.
+        return self.load(config.sku_id)
+
     # -- resolution --------------------------------------------------------- #
     def resolve_adapter(self, bundle: SkuBundle) -> ModelAdapter:
         """Instantiate the adapter named by ``bundle.config.adapter_id``."""
@@ -204,6 +232,30 @@ def _read_yaml(path: Path) -> dict[str, Any]:
     return data
 
 
+def _write_yaml(path: Path, data: dict[str, Any]) -> None:
+    with path.open("w", encoding="utf-8") as fh:
+        yaml.safe_dump(data, fh, sort_keys=False, default_flow_style=False)
+
+
+def _config_to_yaml_dict(config: SkuConfig) -> dict[str, Any]:
+    """Serialize a :class:`SkuConfig` to a plain YAML-safe mapping (stable order).
+
+    ``mode="json"`` turns the ``result_type`` enum into its string value so
+    ``yaml.safe_dump`` can write it.
+    """
+    return config.model_dump(mode="json")
+
+
+def _sop_stub(sku_id: str) -> dict[str, Any]:
+    """Minimal placeholder SOP; real authoring happens out-of-band later."""
+    return {
+        "sku_id": sku_id,
+        "version": 1,
+        "capture": {},
+        "pass_fail": {"rules": []},
+    }
+
+
 def registered_adapters() -> dict[str, type[ModelAdapter]]:
     """Snapshot of registered adapter ids -> classes (for introspection/tests)."""
     return dict(_ADAPTERS)
@@ -218,6 +270,7 @@ __all__ = [
     "SkuRegistry",
     "SkuBundle",
     "RegistryError",
+    "BundleExistsError",
     "register_adapter",
     "register_plugin",
     "discover_plugins",

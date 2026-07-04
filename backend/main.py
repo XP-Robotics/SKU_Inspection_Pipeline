@@ -13,13 +13,15 @@ from __future__ import annotations
 from functools import lru_cache
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from typing import Any
 
 from backend import settings
-from core.contracts import SkuConfig
+from core.contracts import ResultType, SkuConfig
 from core.logging import InspectionLogger, InspectionRecord
 from core.orchestration import InspectionService, OrchestrationError
-from core.registry import RegistryError, SkuRegistry
+from core.registry import BundleExistsError, RegistryError, SkuRegistry
 
 app = FastAPI(
     title="Multi-SKU Visual Inspection Pipeline",
@@ -55,6 +57,26 @@ class HealthResponse(BaseModel):
     status: str
 
 
+class CreateSkuRequest(BaseModel):
+    """Body for ``POST /skus`` — the declarative config for a new bundle.
+
+    Mirrors the fields of the frozen :class:`SkuConfig` (build phase "Define SKU").
+    ``sku_id`` is constrained to a filesystem-safe slug since it becomes a
+    directory name. Validation failures surface as FastAPI's standard 422.
+    """
+
+    model_config = {"extra": "forbid"}
+
+    sku_id: str = Field(pattern=r"^[a-z0-9][a-z0-9_-]*$")
+    name: str | None = None
+    result_type: ResultType
+    adapter_id: str
+    plugin_id: str
+    classes: list[str] = Field(default_factory=list)
+    thresholds: dict[str, float] = Field(default_factory=dict)
+    params: dict[str, Any] = Field(default_factory=dict)
+
+
 # --------------------------------------------------------------------------- #
 # Routes                                                                       #
 # --------------------------------------------------------------------------- #
@@ -75,6 +97,35 @@ def list_skus(service: InspectionService = Depends(get_service)) -> SkuListRespo
             )
         )
     return SkuListResponse(skus=summaries)
+
+
+@app.post(
+    "/skus",
+    response_model=SkuConfig,
+    status_code=201,
+    tags=["skus"],
+    summary="Create a SKU bundle",
+    responses={
+        409: {"description": "A bundle with that sku_id already exists"},
+        422: {"description": "Validation error"},
+    },
+)
+def create_sku(
+    body: CreateSkuRequest, service: InspectionService = Depends(get_service)
+) -> SkuConfig:
+    """Create a SKU bundle from its declarative config (build phase "Define SKU").
+
+    Scaffolds ``skus/<sku_id>/`` (config.yaml + empty data/model/metrics + sop
+    stub) and returns the persisted :class:`SkuConfig`. The adapter/plugin named
+    by id are NOT resolved here — an unknown id is allowed; the bundle simply is
+    not runnable until they exist. Generic across SKUs: no identity branching.
+    """
+    config = SkuConfig(**body.model_dump())
+    try:
+        bundle = service.create_bundle(config)
+    except BundleExistsError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return bundle.config
 
 
 @app.get("/skus/{sku_id}", response_model=SkuConfig, tags=["skus"])

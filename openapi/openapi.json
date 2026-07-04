@@ -47,6 +47,42 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "skus"
+        ],
+        "summary": "Create a SKU bundle",
+        "description": "Create a SKU bundle from its declarative config (build phase \"Define SKU\").\n\nScaffolds ``skus/<sku_id>/`` (config.yaml + empty data/model/metrics + sop\nstub) and returns the persisted :class:`SkuConfig`. The adapter/plugin named\nby id are NOT resolved here \u2014 an unknown id is allowed; the bundle simply is\nnot runnable until they exist. Generic across SKUs: no identity branching.",
+        "operationId": "create_sku_skus_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSkuRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkuConfig"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A bundle with that sku_id already exists"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        }
       }
     },
     "/skus/{sku_id}": {
@@ -219,6 +255,66 @@
           "confidence"
         ],
         "title": "ClassificationPayload"
+      },
+      "CreateSkuRequest": {
+        "properties": {
+          "sku_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "title": "Sku Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "result_type": {
+            "$ref": "#/components/schemas/ResultType"
+          },
+          "adapter_id": {
+            "type": "string",
+            "title": "Adapter Id"
+          },
+          "plugin_id": {
+            "type": "string",
+            "title": "Plugin Id"
+          },
+          "classes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Classes"
+          },
+          "thresholds": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Thresholds"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sku_id",
+          "result_type",
+          "adapter_id",
+          "plugin_id"
+        ],
+        "title": "CreateSkuRequest",
+        "description": "Body for ``POST /skus`` \u2014 the declarative config for a new bundle.\n\nMirrors the fields of the frozen :class:`SkuConfig` (build phase \"Define SKU\").\n``sku_id`` is constrained to a filesystem-safe slug since it becomes a\ndirectory name. Validation failures surface as FastAPI's standard 422."
       },
       "Detection": {
         "properties": {

@@ -53,6 +53,14 @@ identify -> load bundle -> resolve adapter+plugin by id -> `predict` -> assert t
 result's `result_type` matches config -> `evaluate` -> assert the verdict has a
 reason -> log to JSONL -> return the `InspectionRecord`.
 
+## Build-phase endpoint: create a SKU (`POST /skus`)
+`POST /skus` (JSON `CreateSkuRequest`) is step 1 "Define SKU": it writes
+`skus/<id>/config.yaml` + empty `data/model/metrics` + a sop stub via
+`SkuRegistry.create`, then returns the persisted `SkuConfig` (201). Duplicate id ->
+409, invalid body -> 422. It only stores `adapter_id`/`plugin_id` as ids; it does
+NOT resolve them (an unknown id is allowed — the bundle just isn't runnable yet).
+The rest of onboarding (SOP, data, train, adapter, plugin) is out-of-band.
+
 ## The published contract
 `GET /openapi.json` (or `python -m scripts.publish_openapi` -> `openapi/openapi.json`)
 is the authoritative schema the frontend builds on. Every response model is a frozen

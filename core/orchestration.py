@@ -9,7 +9,7 @@ never branches on the identity of a particular SKU.
 
 from __future__ import annotations
 
-from core.contracts import ImageInput, ModelResult, Verdict
+from core.contracts import ImageInput, ModelResult, SkuConfig, Verdict
 from core.logging import InspectionLogger, InspectionRecord
 from core.registry import SkuBundle, SkuRegistry
 
@@ -33,6 +33,10 @@ class InspectionService:
     def discover(self) -> list[str]:
         """Ids of every registered SKU bundle."""
         return self._registry.discover()
+
+    def create_bundle(self, config: SkuConfig) -> SkuBundle:
+        """Build-phase step 1 ("Define SKU"): scaffold a new bundle on disk."""
+        return self._registry.create(config)
 
     def load_bundle(self, sku_id: str) -> SkuBundle:
         """Step 1-2: identify the SKU and load its bundle from the registry."""
