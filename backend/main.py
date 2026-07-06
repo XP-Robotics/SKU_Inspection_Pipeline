@@ -11,8 +11,10 @@ dispatches through the registry. Nothing here branches on a specific SKU id.
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from typing import Any
@@ -158,5 +160,10 @@ async def inspect(
         # Adapter/plugin violated the contract for this bundle.
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
+
+# Mount frontend static files (AFTER all API routes)
+frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
+if frontend_dist.exists():
+    app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
 
 __all__ = ["app", "get_service"]
