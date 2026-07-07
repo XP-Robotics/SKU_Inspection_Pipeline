@@ -60,3 +60,4 @@ Frontend: headless build + contract/render checks (verified on `feat/frontend`).
 1. **Issue #2 (finish):** bless `checks[]` in `core/contracts.py` (plugin+frontend already speak it).
 2. **Issue #3:** run frontend against live backend (`VITE_USE_MOCKS=false`) end-to-end vs real `/inspect`.
 3. **Second SKU:** classification or measurement bundle to prove heterogeneity (no shared-code edits).
+
