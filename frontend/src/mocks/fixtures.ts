@@ -14,10 +14,9 @@ import type {
  * openapi/openapi.json exactly. Proposed-endpoint fixtures (sops, metrics,
  * datasets) back UI whose endpoints the backend has not published yet.
  *
- * SKUs cover all three ModelResult types:
- *   - bracket-a   detection      (the "which screw failed" showcase)
- *   - label-b     classification (label present / misprint)
- *   - shaft-c     measurement    (dimension tolerance)
+ * SKUs match the real backend:
+ *   - demo_bracket      detection (the bracket assembly showcase)
+ *   - classifier_chip   classification (chip condition classification)
  */
 
 // A tiny inline SVG so images render with no network dependency. Used only for
@@ -35,42 +34,31 @@ function placeholder(label: string, color: string): string {
 
 // ---- Authoritative: SkuSummary (GET /skus) --------------------------------
 export const skus: SkuSummary[] = [
-  { sku_id: "bracket-a", name: "Mounting Bracket A", result_type: "detection" },
-  { sku_id: "label-b", name: "Product Label B", result_type: "classification" },
-  { sku_id: "shaft-c", name: "Drive Shaft C", result_type: "measurement" },
+  { sku_id: "demo_bracket", name: "Demo Bracket Assembly", result_type: "detection" },
+  { sku_id: "classifier_chip", name: "Chip Classification", result_type: "classification" },
 ];
 
 // ---- Authoritative: SkuConfig (GET /skus/{id}) ----------------------------
 export const skuConfigs: Record<string, SkuConfig> = {
-  "bracket-a": {
-    sku_id: "bracket-a",
-    name: "Mounting Bracket A",
+  "demo_bracket": {
+    sku_id: "demo_bracket",
+    name: "Demo Bracket Assembly",
     result_type: "detection",
-    adapter_id: "rfdetr_bracket_a",
-    plugin_id: "bracket_a_rules",
+    adapter_id: "stub",
+    plugin_id: "parts_presence",
     classes: ["screw", "crack"],
     thresholds: { screw: 0.5, crack: 0.4 },
     params: { required_screws: 4 },
   },
-  "label-b": {
-    sku_id: "label-b",
-    name: "Product Label B",
+  "classifier_chip": {
+    sku_id: "classifier_chip",
+    name: "Chip Classification",
     result_type: "classification",
-    adapter_id: "cls_label_b",
-    plugin_id: "label_b_rules",
-    classes: ["ok", "misprint", "smudge"],
-    thresholds: { ok: 0.8 },
+    adapter_id: "stub",
+    plugin_id: "parts_presence",
+    classes: ["pass", "fail"],
+    thresholds: { pass: 0.9 },
     params: {},
-  },
-  "shaft-c": {
-    sku_id: "shaft-c",
-    name: "Drive Shaft C",
-    result_type: "measurement",
-    adapter_id: "measure_shaft_c",
-    plugin_id: "shaft_c_rules",
-    classes: ["diameter", "length"],
-    thresholds: {},
-    params: { diameter_mm: [11.9, 12.1], length_mm: [87.5, 88.5] },
   },
 };
 
@@ -81,7 +69,7 @@ export const skuConfigs: Record<string, SkuConfig> = {
 
 const bracketFail: InspectionRecord = {
   inspection_id: "insp-1007",
-  sku_id: "bracket-a",
+  sku_id: "demo_bracket",
   created_at: "2026-07-04T09:12:44Z",
   verdict: {
     passed: false,
@@ -104,7 +92,7 @@ const bracketFail: InspectionRecord = {
     },
   },
   result: {
-    sku_id: "bracket-a",
+    sku_id: "demo_bracket",
     result_type: "detection",
     model_version: "rfdetr-2026.06.1",
     payload: {
@@ -120,7 +108,7 @@ const bracketFail: InspectionRecord = {
 
 const bracketPass: InspectionRecord = {
   inspection_id: "insp-1006",
-  sku_id: "bracket-a",
+  sku_id: "demo_bracket",
   created_at: "2026-07-04T09:05:02Z",
   verdict: {
     passed: true,
@@ -136,7 +124,7 @@ const bracketPass: InspectionRecord = {
     },
   },
   result: {
-    sku_id: "bracket-a",
+    sku_id: "demo_bracket",
     result_type: "detection",
     model_version: "rfdetr-2026.06.1",
     payload: {
@@ -221,7 +209,7 @@ export const inspectResults: Record<string, InspectionRecord> = {
 // ---- Proposed: SOP (GET/PUT /skus/{id}/sop) -------------------------------
 export const sops: Record<string, Sop> = {
   "bracket-a": {
-    sku_id: "bracket-a",
+    sku_id: "demo_bracket",
     version: 3,
     capture: {
       angles: ["top-down", "front-45"],
@@ -281,7 +269,7 @@ export const sops: Record<string, Sop> = {
 // ---- Proposed: metrics (GET /skus/{id}/metrics) ---------------------------
 export const metrics: Record<string, MetricsReport> = {
   "bracket-a": {
-    sku_id: "bracket-a",
+    sku_id: "demo_bracket",
     result_type: "detection",
     generated_at: "2026-07-03T18:00:00Z",
     dataset_split: "test (held-out by capture session)",

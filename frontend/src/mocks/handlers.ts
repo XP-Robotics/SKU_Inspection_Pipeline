@@ -83,7 +83,30 @@ export const handlers = [
 
   // ---- Proposed (pending backend) -----------------------------------------
   http.get("/api/skus/:skuId/sop", ({ params }) => {
-    const sop = sopStore[params.skuId as string];
+    const skuId = params.skuId as string;
+    let sop = sopStore[skuId];
+
+    // Auto-create empty SOP on first access if not found (matches backend behavior)
+    if (!sop && cfgStore[skuId]) {
+      sop = {
+        sku_id: skuId,
+        version: 1,
+        capture: {
+          angles: [],
+          lighting: "",
+          distance_cm: 0,
+          background: "",
+          min_images: 0,
+          notes: "",
+        },
+        pass_fail: {
+          summary: "",
+          rules: [],
+        },
+      };
+      sopStore[skuId] = sop;
+    }
+
     return sop ? HttpResponse.json(sop) : notFound("SOP not found");
   }),
 
@@ -117,5 +140,24 @@ export const handlers = [
     let rows = inspections;
     if (skuId) rows = rows.filter((r) => r.sku_id === skuId);
     return HttpResponse.json(rows.slice(0, limit));
+  }),
+
+  http.post("/api/skus/:skuId/dataset/upload", async ({ request }) => {
+    const formData = await request.formData();
+    const files = formData.getAll("files") as File[];
+    return HttpResponse.json({
+      status: "success",
+      files_uploaded: files.length,
+    });
+  }),
+
+  http.post("/api/skus/:skuId/dataset/annotations", async ({ request }) => {
+    const formData = await request.formData();
+    const file = formData.get("file") as File;
+    const format = file?.name?.endsWith(".zip") ? "coco_zip" : "coco";
+    return HttpResponse.json({
+      status: "success",
+      format,
+    });
   }),
 ];

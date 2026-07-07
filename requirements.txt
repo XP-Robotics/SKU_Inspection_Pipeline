@@ -5,6 +5,12 @@ pydantic>=2.6
 pyyaml>=6.0
 python-multipart>=0.0.9
 
+# Database
+sqlalchemy>=2.0.23
+
+# Optional: PostgreSQL support (install with: pip install psycopg2-binary)
+# psycopg2-binary>=2.9.9
+
 # Tests
 pytest>=8.0
 httpx>=0.27

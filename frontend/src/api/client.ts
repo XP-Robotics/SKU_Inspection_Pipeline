@@ -133,6 +133,24 @@ export const api = {
     getDataset: (skuId: string): Promise<Dataset> =>
       request(`/skus/${encodeURIComponent(skuId)}/dataset`, S.Dataset),
 
+    uploadDataset: (skuId: string, files: File[]): Promise<{ status: string; files_uploaded: number }> => {
+      const formData = new FormData();
+      files.forEach(f => formData.append("files", f));
+      return request(`/skus/${encodeURIComponent(skuId)}/dataset/upload`, S.DatasetUploadResponse, {
+        method: "POST",
+        body: formData
+      });
+    },
+
+    uploadAnnotations: (skuId: string, file: File): Promise<{ status: string; format: string }> => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return request(`/skus/${encodeURIComponent(skuId)}/dataset/annotations`, S.AnnotationsUploadResponse, {
+        method: "POST",
+        body: formData
+      });
+    },
+
     listInspections: (params?: { sku_id?: string; limit?: number }): Promise<InspectionRecord[]> => {
       const q = new URLSearchParams();
       if (params?.sku_id) q.set("sku_id", params.sku_id);

@@ -230,3 +230,13 @@ export const Dataset = z.object({
     .optional(),
   images: z.array(DatasetImage),
 });
+
+export const DatasetUploadResponse = z.object({
+  status: z.string(),
+  files_uploaded: z.number(),
+});
+
+export const AnnotationsUploadResponse = z.object({
+  status: z.string(),
+  format: z.string(),
+});
